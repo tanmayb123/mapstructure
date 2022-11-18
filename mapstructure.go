@@ -996,7 +996,6 @@ func (d *Decoder) decodeMapFromStruct(name string, dataVal reflect.Value, val re
 					return fmt.Errorf("cannot assign type '%s' to map value field of type '%s'", v.Type(), valMap.Type().Elem())
 				}
 
-				println(fmt.Sprintf("%s assign '%s'", debugPrefix, keyName))
 				valMap.SetMapIndex(reflect.ValueOf(keyName), v)
 				break
 			}
