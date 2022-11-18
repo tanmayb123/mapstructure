@@ -260,6 +260,13 @@ type DecoderConfig struct {
 	//  }
 	Deep bool
 
+	// Merge will merge data into existing target maps
+	//
+	//  type Parent struct {
+	//      Children []Child `mapstructure:",merge"`
+	//  }
+	Merge bool
+
 	// Metadata is the struct that will contain extra metadata about
 	// the decoding. If this is nil, then no metadata will be tracked.
 	Metadata *Metadata
@@ -939,6 +946,9 @@ func (d *Decoder) decodeMapFromStruct(name string, dataVal reflect.Value, val re
 		// If Deep is set in the config, set as default value.
 		deep := d.config.Deep
 
+		// If Merge is set in the config, set as default value.
+		merge := d.config.Merge
+
 		v = dereferencePtrToStructIfNeeded(v, d.config.TagName)
 
 		// Determine the name of the key in the map
@@ -967,6 +977,8 @@ func (d *Decoder) decodeMapFromStruct(name string, dataVal reflect.Value, val re
 
 			deep = deep || strings.Index(tagValue[index+1:], "deep") != -1
 
+			merge = merge || strings.Index(tagValue[index+1:], "merge") != -1
+
 			if keyNameTagValue := tagValue[:index]; keyNameTagValue != "" {
 				keyName = keyNameTagValue
 			}
@@ -978,6 +990,18 @@ func (d *Decoder) decodeMapFromStruct(name string, dataVal reflect.Value, val re
 		}
 
 		switch v.Kind() {
+		case reflect.Map:
+			if !merge {
+				if !v.Type().AssignableTo(valMap.Type().Elem()) {
+					return fmt.Errorf("cannot assign type '%s' to map value field of type '%s'", v.Type(), valMap.Type().Elem())
+				}
+
+				println(fmt.Sprintf("%s assign '%s'", debugPrefix, keyName))
+				valMap.SetMapIndex(reflect.ValueOf(keyName), v)
+				break
+			}
+			fallthrough
+
 		// this is an embedded struct, so handle it differently
 		case reflect.Struct:
 			x := reflect.New(v.Type())
@@ -998,8 +1022,15 @@ func (d *Decoder) decodeMapFromStruct(name string, dataVal reflect.Value, val re
 				vElemType = valMap.Type().Elem()
 			}
 
-			mType := reflect.MapOf(vKeyType, vElemType)
-			vMap := reflect.MakeMap(mType)
+			var vMap reflect.Value
+
+			vTargetMapVal := valMap.MapIndex(reflect.ValueOf(keyName))
+			if vTargetMapVal.IsValid() && !vTargetMapVal.IsZero() {
+				vMap = vTargetMapVal
+			} else {
+				mType := reflect.MapOf(vKeyType, vElemType)
+				vMap = reflect.MakeMap(mType)
+			}
 
 			// Creating a pointer to a map so that other methods can completely
 			// overwrite the map if need be (looking at you decodeMapFromMap). The

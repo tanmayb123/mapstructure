@@ -2919,6 +2919,68 @@ func TestDecode_structArrayDeepMap(t *testing.T) {
 	}
 }
 
+func TestDecode_mergeStructMap(t *testing.T) {
+	type SourceChild struct {
+		Int int                `mapstructure:"int"`
+		Map map[string]float32 `mapstructure:"map"`
+	}
+
+	type SourceParent struct {
+		Child  SourceChild `mapstructure:"child"`
+		String string      `mapstructure:"string"`
+	}
+
+	source := SourceParent{
+		Child: SourceChild{
+			Int: 1,
+			Map: map[string]float32{
+				"two": 2.0,
+			},
+		},
+		String: "bar",
+	}
+
+	target := map[string]interface{}{
+		"child": map[string]interface{}{
+			"sub-string": "foo",
+			"map": map[string]float32{
+				"one": 1.0,
+			},
+		},
+	}
+
+	config := &DecoderConfig{
+		Metadata: nil,
+		Result:   &target,
+		Merge:    true,
+	}
+
+	decoder, err := NewDecoder(config)
+	if err != nil {
+		t.Fatalf("got error: %s", err)
+	}
+
+	if err := decoder.Decode(source); err != nil {
+		t.Fatalf("got error: %s", err)
+	}
+
+	expected := map[string]interface{}{
+		"child": map[string]interface{}{
+			"sub-string": "foo",
+			"int":        1,
+			"map": map[string]float32{
+				"one": 1.0,
+				"two": 2.0,
+			},
+		},
+		"string": "bar",
+	}
+
+	if !reflect.DeepEqual(target, expected) {
+		t.Fatalf("bad: \nexpected: %#v\nresult: %#v", expected, target)
+	}
+}
+
 func stringPtr(v string) *string              { return &v }
 func intPtr(v int) *int                       { return &v }
 func uintPtr(v uint) *uint                    { return &v }
