@@ -1627,8 +1627,12 @@ func dereferencePtrToStructIfNeeded(v reflect.Value, tagName string) reflect.Val
 	}
 
 	switch v.Elem().Kind() {
-	case reflect.Slice, reflect.Map:
-		return v.Elem()
+	default:
+		if v.IsZero() {
+			return v
+		} else {
+			return v.Elem()
+		}
 
 	case reflect.Struct:
 		deref := v.Elem()
@@ -1636,9 +1640,6 @@ func dereferencePtrToStructIfNeeded(v reflect.Value, tagName string) reflect.Val
 		if isStructTypeConvertibleToMap(derefT, true, tagName) {
 			return deref
 		}
-		return v
-
-	default:
 		return v
 	}
 }
