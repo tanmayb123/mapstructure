@@ -1627,7 +1627,7 @@ func dereferencePtrToStructIfNeeded(v reflect.Value, tagName string) reflect.Val
 	}
 
 	switch v.Elem().Kind() {
-	case reflect.Slice:
+	case reflect.Slice, reflect.Map:
 		return v.Elem()
 
 	case reflect.Struct:

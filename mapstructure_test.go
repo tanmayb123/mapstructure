@@ -2254,7 +2254,7 @@ func TestDecodeTable(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(tt.out, tt.target) {
-				t.Fatalf("%q: TestMapOutputForStructuredInputs() expected: %#v, got: %#v", tt.name, tt.out, tt.target)
+				t.Fatalf("%q: TestMapOutputForStructuredInputs()\n  - expected: %#v\n  - got     : %#v", tt.name, tt.out, tt.target)
 			}
 		})
 	}
@@ -2571,7 +2571,7 @@ func TestDecode_StructTaggedWithOmitempty_OmitEmptyValues(t *testing.T) {
 	Decode(input, actual)
 
 	if !reflect.DeepEqual(actual, expected) {
-		t.Fatalf("Decode() expected: %#v, got: %#v", expected, actual)
+		t.Fatalf("Decode()\n  - expected: %#v\n  - got     : %#v", expected, actual)
 	}
 }
 
@@ -2615,7 +2615,7 @@ func TestDecode_StructTaggedWithOmitempty_KeepNonEmptyValues(t *testing.T) {
 	Decode(input, actual)
 
 	if !reflect.DeepEqual(actual, expected) {
-		t.Fatalf("Decode() expected: %#v, got: %#v", expected, actual)
+		t.Fatalf("Decode()\n  - expected: %#v\n  - got     : %#v", expected, actual)
 	}
 }
 
@@ -2729,6 +2729,35 @@ func TestDecoder_IgnoreUntaggedFields(t *testing.T) {
 
 	if !reflect.DeepEqual(expected, actual) {
 		t.Fatalf("Decode() expected: %#v\ngot: %#v", expected, actual)
+	}
+}
+
+func TestDecode_OmitEmptyStructPointers(t *testing.T) {
+
+	type Child struct {
+		Data string `mapstructure:"data"`
+	}
+
+	type Parent struct {
+		ChildA *Child `mapstructure:"child-a"`
+		ChildB *Child `mapstructure:"child-b,omitempty"`
+	}
+
+	input := &Parent{}
+
+	actual := make(map[string]interface{})
+
+	if err := Decode(input, &actual); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	var nullChild *Child
+	expected := map[string]interface{}{
+		"child-a": nullChild,
+	}
+
+	if !reflect.DeepEqual(expected, actual) {
+		t.Fatalf("Decode()\n  - expected: %#v\n  - got     : %#v", expected, actual)
 	}
 }
 
@@ -2972,6 +3001,48 @@ func TestDecode_mergeStructMap(t *testing.T) {
 				"one": 1.0,
 				"two": 2.0,
 			},
+		},
+		"string": "bar",
+	}
+
+	if !reflect.DeepEqual(target, expected) {
+		t.Fatalf("bad: \nexpected: %#v\nresult: %#v", expected, target)
+	}
+}
+
+func TestDecode_dereferenceMap(t *testing.T) {
+
+	type Source struct {
+		Map    *map[string]string `mapstructure:"map"`
+		String string             `mapstructure:"string"`
+	}
+
+	source := Source{
+		Map: &map[string]string{
+			"foo": "bar",
+		},
+		String: "bar",
+	}
+
+	target := map[string]interface{}{}
+
+	config := &DecoderConfig{
+		Metadata: nil,
+		Result:   &target,
+	}
+
+	decoder, err := NewDecoder(config)
+	if err != nil {
+		t.Fatalf("got error: %s", err)
+	}
+
+	if err := decoder.Decode(source); err != nil {
+		t.Fatalf("got error: %s", err)
+	}
+
+	expected := map[string]interface{}{
+		"map": map[string]string{
+			"foo": "bar",
 		},
 		"string": "bar",
 	}
